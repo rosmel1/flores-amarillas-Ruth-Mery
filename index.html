@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Corazón y Galaxia de Flores Amarillas 🌻✨</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      background-color: #020208;
+      color: #fff;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      overflow: hidden;
+      touch-action: none;
+    }
+
+    #canvas-container {
+      width: 100vw;
+      height: 100vh;
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 1;
+    }
+
+    #main-title {
+      position: absolute;
+      top: 20px;
+      width: 100%;
+      text-align: center;
+      z-index: 10;
+      font-size: 1.4rem;
+      font-weight: 800;
+      color: #fffbbf;
+      text-shadow: 0 0 12px #ffd700, 0 0 25px #ff9900;
+      pointer-events: none;
+      padding: 0 15px;
+    }
+
+    @media (min-width: 768px) {
+      #main-title {
+        font-size: 2rem;
+        top: 30px;
+      }
+    }
+
+    #instruction {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 20;
+      font-size: 1rem;
+      background: rgba(15, 10, 25, 0.9);
+      padding: 14px 28px;
+      border-radius: 30px;
+      border: 1.5px solid #ffd700;
+      color: #ffe600;
+      cursor: pointer;
+      box-shadow: 0 0 25px rgba(255, 215, 0, 0.6);
+      user-select: none;
+      white-space: nowrap;
+    }
+
+    #card-modal {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 30;
+      background: rgba(15, 10, 28, 0.95);
+      border: 1.5px solid rgba(255, 215, 0, 0.8);
+      padding: 24px;
+      border-radius: 22px;
+      width: 85vw;
+      max-width: 340px;
+      text-align: center;
+      box-shadow: 0 0 35px rgba(255, 215, 0, 0.5);
+      backdrop-filter: blur(10px);
+      display: none;
+      animation: fadeIn 0.4s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translate(-50%, -45%); }
+      to { opacity: 1; transform: translate(-50%, -50%); }
+    }
+
+    .close-btn {
+      position: absolute;
+      top: 10px;
+      right: 15px;
+      font-size: 24px;
+      cursor: pointer;
+      color: #ffd700;
+      padding: 5px;
+    }
+
+    #card-modal h3 {
+      color: #ffd700;
+      margin-bottom: 12px;
+      font-size: 1.2rem;
+    }
+
+    #card-modal p {
+      font-size: 0.95rem;
+      line-height: 1.5;
+      color: #fff8d6;
+    }
+
+    #flower-tooltip {
+      position: absolute;
+      z-index: 25;
+      background: rgba(20, 15, 5, 0.92);
+      border: 1px solid #ffd700;
+      color: #fff8bf;
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-size: 0.88rem;
+      pointer-events: none;
+      display: none;
+      box-shadow: 0 0 18px rgba(255, 215, 0, 0.6);
+      transform: translate(-50%, -130%);
+      white-space: nowrap;
+      transition: opacity 0.3s ease;
+    }
+  </style>
+
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body>
+
+  <audio id="bg-music" src="musica.mp3" loop preload="auto"></audio>
+
+  <div id="main-title">Feliz Día de las Flores Amarillas 🌻✨</div>
+  <div id="instruction">Toca para abrir 🌻📍</div>
+  <div id="flower-tooltip"></div>
+  <div id="canvas-container"></div>
+
+  <div id="card-modal">
+    <span class="close-btn" id="close-btn">&times;</span>
+    <h3>📍 Para ti 💛</h3>
+    <p>
+      Hoy te entrego este corazón de flores amarillas para recordarte lo especial e importante que eres. 
+      <br><br>
+      <i>Toca las flores para descubrir mensajes especiales.</i> ✨🌻
+    </p>
+  </div>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+    let scene, camera, renderer, controls;
+    let heartParticleSystem, galaxySpiral, photoMesh;
+    let flowerGroup = new THREE.Group();
+    let ambientFlowersGroup = new THREE.Group();
+    let textGroup = new THREE.Group();
+    let raycaster = new THREE.Raycaster();
+    let mouse = new THREE.Vector2();
+    let interactiveFlowers = [];
+
+    const phrases = [
+      "Gracias por existir 💛",
+      "Aquí siempre tienes un lugar ✨",
+      "Recuerda cuánto vales 🌻",
+      "Eres mi sol brillante ☀️",
+      "Tu sonrisa ilumina todo 🌼",
+      "Gracias por estar a mi lado 💛",
+      "Hoy el amarillo es por ti 🌻",
+      "Te quiero mucho 💛"
+    ];
+
+    const tooltip = document.getElementById('flower-tooltip');
+
+    function init() {
+      scene = new THREE.Scene();
+
+      camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+      adjustCameraDistance();
+
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+      controls = new OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.05;
+
+      const ambientLight = new THREE.AmbientLight(0xffffff, 1);
+      scene.add(ambientLight);
+
+      createCenterPhoto();
+      createFlowerHeartShape();
+      createAmbientFlowers(); // Flores alrededor de la pantalla
+      createHeartParticles();
+      createGalaxyBase();
+      createTextPhrases();
+
+      scene.add(flowerGroup);
+      scene.add(ambientFlowersGroup);
+      scene.add(textGroup);
+
+      window.addEventListener('resize', onWindowResize);
+      window.addEventListener('pointerdown', onPointerDown);
+
+      animate();
+    }
+
+    function adjustCameraDistance() {
+      if (window.innerWidth < 600) {
+        camera.position.set(0, 0, 38);
+      } else {
+        camera.position.set(0, 0, 30);
+      }
+      camera.lookAt(0, 0, 0);
+    }
+
+    function createCenterPhoto() {
+      const textureLoader = new THREE.TextureLoader();
+      textureLoader.setCrossOrigin('anonymous');
+      const imageUrl = 'https://i.imgur.com/iAJd5IU.jpeg';
+
+      textureLoader.load(imageUrl, (texture) => {
+        texture.colorSpace = THREE.SRGBColorSpace;
+
+        const geometry = new THREE.CircleGeometry(3.5, 64);
+        const material = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide });
+
+        photoMesh = new THREE.Mesh(geometry, material);
+        photoMesh.position.set(0, 0.5, 0.1);
+        scene.add(photoMesh);
+
+        const ringGeo = new THREE.RingGeometry(3.55, 3.8, 64);
+        const ringMat = new THREE.MeshBasicMaterial({ color: 0xffd700, side: THREE.DoubleSide });
+        const ringMesh = new THREE.Mesh(ringGeo, ringMat);
+        photoMesh.add(ringMesh);
+      });
+    }
+
+    function createSunflowerTexture() {
+      const canvas = document.createElement('canvas');
+      canvas.width = 128;
+      canvas.height = 128;
+      const ctx = canvas.getContext('2d');
+
+      ctx.beginPath();
+      ctx.arc(64, 64, 20, 0, Math.PI * 2);
+      ctx.fillStyle = '#3d210b';
+      ctx.fill();
+
+      const petals = 16;
+      for (let i = 0; i < petals; i++) {
+        const angle = (i * Math.PI * 2) / petals;
+        ctx.save();
+        ctx.translate(64, 64);
+        ctx.rotate(angle);
+        ctx.beginPath();
+        ctx.ellipse(0, -36, 9, 22, 0, 0, Math.PI * 2);
+        ctx.fillStyle = '#ffcc00';
+        ctx.fill();
+        ctx.restore();
+      }
+
+      return new THREE.CanvasTexture(canvas);
+    }
+
+    // Corazón central formado por flores
+    function createFlowerHeartShape() {
+      const flowerTex = createSunflowerTexture();
+      const material = new THREE.SpriteMaterial({ map: flowerTex, transparent: true });
+
+      const count = window.innerWidth < 600 ? 32 : 44;
+      for (let i = 0; i < count; i++) {
+        const t = (i / count) * Math.PI * 2;
+        
+        let x = 16 * Math.pow(Math.sin(t), 3);
+        let y = 13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t);
+
+        const sprite = new THREE.Sprite(material);
+        sprite.position.set(x * 0.55, y * 0.55 + 0.5, (Math.random() - 0.5) * 0.5);
+        
+        const scale = 1.8 + Math.random() * 0.4;
+        sprite.scale.set(scale, scale, 1);
+
+        sprite.userData = {
+          phrase: phrases[i % phrases.length],
+          originalScale: scale,
+          pulseTimer: 0
+        };
+
+        flowerGroup.add(sprite);
+        interactiveFlowers.push(sprite);
+      }
+    }
+
+    // Flores flotantes por todos los alrededores del escenario
+    function createAmbientFlowers() {
+      const flowerTex = createSunflowerTexture();
+      const material = new THREE.SpriteMaterial({ map: flowerTex, transparent: true, opacity: 0.88 });
+
+      const totalAmbientFlowers = window.innerWidth < 600 ? 45 : 70;
+
+      for (let i = 0; i < totalAmbientFlowers; i++) {
+        const sprite = new THREE.Sprite(material);
+        
+        // Distribuir en anillo exterior
+        const radius = 13 + Math.random() * 16;
+        const angle = Math.random() * Math.PI * 2;
+        const z = (Math.random() - 0.5) * 15;
+
+        sprite.position.set(Math.cos(angle) * radius, Math.sin(angle) * radius, z);
+
+        const scale = 1.2 + Math.random() * 1.5;
+        sprite.scale.set(scale, scale, 1);
+
+        sprite.userData = {
+          phrase: phrases[i % phrases.length],
+          originalScale: scale,
+          pulseTimer: 0
+        };
+
+        ambientFlowersGroup.add(sprite);
+        interactiveFlowers.push(sprite);
+      }
+    }
+
+    function createHeartParticles() {
+      const count = 1800;
+      const geometry = new THREE.BufferGeometry();
+      const positions = new Float32Array(count * 3);
+      const colors = new Float32Array(count * 3);
+
+      const colorYellow = new THREE.Color(0xffea00);
+      const colorOrange = new THREE.Color(0xff8c00);
+
+      for (let i = 0; i < count; i++) {
+        let t = Math.PI * (Math.random() * 2 - 1);
+        let x = 16 * Math.pow(Math.sin(t), 3);
+        let y = 13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t);
+
+        positions[i * 3] = x * 0.53 + (Math.random() - 0.5) * 0.8;
+        positions[i * 3 + 1] = y * 0.53 + 0.5 + (Math.random() - 0.5) * 0.8;
+        positions[i * 3 + 2] = (Math.random() - 0.5) * 2;
+
+        let mixed = colorYellow.clone().lerp(colorOrange, Math.random());
+        colors[i * 3] = mixed.r;
+        colors[i * 3 + 1] = mixed.g;
+        colors[i * 3 + 2] = mixed.b;
+      }
+
+      geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+      geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+      const material = new THREE.PointsMaterial({
+        size: 0.35,
+        vertexColors: true,
+        transparent: true,
+        opacity: 0.75,
+        blending: THREE.AdditiveBlending
+      });
+
+      heartParticleSystem = new THREE.Points(geometry, material);
+      scene.add(heartParticleSystem);
+    }
+
+    function createGalaxyBase() {
+      const count = 3500;
+      const geometry = new THREE.BufferGeometry();
+      const positions = new Float32Array(count * 3);
+
+      for (let i = 0; i < count; i++) {
+        const r = 6 + Math.random() * 22;
+        const angle = i * 0.05;
+
+        positions[i * 3] = Math.cos(angle) * r;
+        positions[i * 3 + 1] = Math.sin(angle) * r - 2;
+        positions[i * 3 + 2] = (Math.random() - 0.5) * 12 - 3;
+      }
+
+      geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+      const material = new THREE.PointsMaterial({
+        size: 0.28,
+        color: 0xffd700,
+        transparent: true,
+        opacity: 0.45
+      });
+
+      galaxySpiral = new THREE.Points(geometry, material);
+      galaxySpiral.rotation.x = 0.9;
+      scene.add(galaxySpiral);
+    }
+
+    function createTextTexture(text) {
+      const canvas = document.createElement('canvas');
+      canvas.width = 512;
+      canvas.height = 64;
+      const ctx = canvas.getContext('2d');
+
+      ctx.font = 'Bold 22px Arial, sans-serif';
+      ctx.fillStyle = '#ffffff';
+      ctx.shadowColor = '#ffd700';
+      ctx.shadowBlur = 10;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(text, 256, 32);
+
+      return new THREE.CanvasTexture(canvas);
+    }
+
+    function createTextPhrases() {
+      phrases.forEach((phrase, index) => {
+        const texture = createTextTexture(phrase);
+        const material = new THREE.SpriteMaterial({ map: texture, transparent: true, opacity: 0.9 });
+        const sprite = new THREE.Sprite(material);
+
+        const angle = (index / phrases.length) * Math.PI * 2;
+        const radius = 13 + (index % 2) * 3.5;
+
+        sprite.position.set(Math.cos(angle) * radius, Math.sin(angle) * radius - 1, (Math.random() - 0.5) * 4);
+        sprite.scale.set(9, 1.2, 1);
+
+        textGroup.add(sprite);
+      });
+    }
+
+    function onPointerDown(event) {
+      if (document.getElementById('card-modal').style.display === 'block') return;
+
+      mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+      mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+      raycaster.setFromCamera(mouse, camera);
+      
+      const allObjects = [...flowerGroup.children, ...ambientFlowersGroup.children];
+      const intersects = raycaster.intersectObjects(allObjects);
+
+      if (intersects.length > 0) {
+        const obj = intersects[0].object;
+        if (obj.userData && obj.userData.phrase) {
+          obj.userData.pulseTimer = 1.0;
+
+          tooltip.innerText = obj.userData.phrase;
+          tooltip.style.left = `${event.clientX}px`;
+          tooltip.style.top = `${event.clientY}px`;
+          tooltip.style.display = 'block';
+          tooltip.style.opacity = '1';
+
+          setTimeout(() => {
+            tooltip.style.opacity = '0';
+            setTimeout(() => { tooltip.style.display = 'none'; }, 300);
+          }, 2200);
+        }
+      }
+    }
+
+    function animate() {
+      requestAnimationFrame(animate);
+
+      if (galaxySpiral) galaxySpiral.rotation.z += 0.002;
+      if (ambientFlowersGroup) ambientFlowersGroup.rotation.z += 0.0012;
+      if (textGroup) textGroup.rotation.y += 0.002;
+
+      if (photoMesh) photoMesh.lookAt(camera.position);
+
+      interactiveFlowers.forEach(flower => {
+        if (flower.userData.pulseTimer > 0) {
+          flower.userData.pulseTimer -= 0.04;
+          const boost = Math.sin(flower.userData.pulseTimer * Math.PI) * 0.6;
+          const s = flower.userData.originalScale + boost;
+          flower.scale.set(s, s, 1);
+        }
+      });
+
+      controls.update();
+      renderer.render(scene, camera);
+    }
+
+    function onWindowResize() {
+      adjustCameraDistance();
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+
+    const instructionBtn = document.getElementById('instruction');
+    const modal = document.getElementById('card-modal');
+    const closeBtn = document.getElementById('close-btn');
+    const bgMusic = document.getElementById('bg-music');
+
+    function handleStart(e) {
+      if (e) e.preventDefault();
+      instructionBtn.style.display = 'none';
+      modal.style.display = 'block';
+
+      if (bgMusic) {
+        bgMusic.play().catch(err => console.log("Audio:", err));
+      }
+    }
+
+    instructionBtn.addEventListener('click', handleStart);
+    instructionBtn.addEventListener('touchstart', handleStart, { passive: false });
+
+    closeBtn.addEventListener('click', () => {
+      modal.style.display = 'none';
+    });
+
+    init();
+  </script>
+</body>
+</html>
