@@ -143,8 +143,9 @@
 </head>
 <body>
 
-<audio id="bg-music" src="sonie-zoe.mp3" loop preload="auto"></audio>
-  
+  <!-- Audio vinculado a tu archivo sonie-zoe.mp3 en la raíz de tu proyecto -->
+  <audio id="bg-music" src="sonie-zoe.mp3" loop preload="auto"></audio>
+
   <div id="main-title">Feliz Día de las Flores Amarillas 🌻✨</div>
   <div id="instruction">Toca para abrir 🌻📍</div>
   <div id="flower-tooltip"></div>
@@ -230,18 +231,15 @@
       camera.lookAt(0, 0, 0);
     }
 
-    // FOTO DEL CENTRO: Recorte circular perfecto sin distorsión
     function createCenterPhoto() {
       const textureLoader = new THREE.TextureLoader();
       textureLoader.setCrossOrigin('anonymous');
       
-      // Puedes reemplazar este link por el de tu propia imagen si deseas
       const imageUrl = 'https://i.imgur.com/iAJd5IU.jpeg';
 
       textureLoader.load(imageUrl, (texture) => {
         texture.colorSpace = THREE.SRGBColorSpace;
 
-        // Ajustar el mapeo para recortar estilo "cover" (evita que la foto se deforme)
         const imageAspect = texture.image.width / texture.image.height;
         if (imageAspect > 1) {
           texture.repeat.set(1 / imageAspect, 1);
@@ -251,7 +249,7 @@
           texture.offset.set(0, (1 - imageAspect) / 2);
         }
 
-        const radius = 3.3; // Tamaño ajustado para encajar justo dentro del corazón
+        const radius = 3.3;
         const geometry = new THREE.CircleGeometry(radius, 64);
         const material = new THREE.MeshBasicMaterial({ 
           map: texture, 
@@ -259,11 +257,9 @@
         });
 
         photoMesh = new THREE.Mesh(geometry, material);
-        // Centrado exacto en el punto medio del corazón geométrico
         photoMesh.position.set(0, 0.4, 0.1); 
         scene.add(photoMesh);
 
-        // Anillo Dorado que sirve de marco elegante
         const ringGeo = new THREE.RingGeometry(radius, radius + 0.25, 64);
         const ringMat = new THREE.MeshBasicMaterial({ color: 0xffd700, side: THREE.DoubleSide });
         const ringMesh = new THREE.Mesh(ringGeo, ringMat);
@@ -514,6 +510,7 @@
       renderer.setSize(window.innerWidth, window.innerHeight);
     }
 
+    // MANEJO MEJORADO DEL AUDIO PARA MÓVILES
     const instructionBtn = document.getElementById('instruction');
     const modal = document.getElementById('card-modal');
     const closeBtn = document.getElementById('close-btn');
@@ -521,14 +518,24 @@
 
     function handleStart(e) {
       if (e) e.preventDefault();
+      
       instructionBtn.style.display = 'none';
       modal.style.display = 'block';
 
       if (bgMusic) {
-        bgMusic.play().catch(err => console.log("Audio:", err));
+        bgMusic.muted = false;
+        bgMusic.volume = 1.0;
+        
+        const playPromise = bgMusic.play();
+        if (playPromise !== undefined) {
+          playPromise.then(() => {
+            console.log("Música reproducida exitosamente");
+          }).catch(err => {
+            console.log("El navegador bloqueó el inicio de audio:", err);
+          });
+        }
       }
     }
-    // -----------------------------------
 
     instructionBtn.addEventListener('click', handleStart);
     instructionBtn.addEventListener('touchstart', handleStart, { passive: false });
@@ -536,6 +543,7 @@
     closeBtn.addEventListener('click', () => {
       modal.style.display = 'none';
     });
+
     init();
   </script>
 </body>
