@@ -143,7 +143,7 @@
 </head>
 <body>
 
-  <audio id="bg-music" src="musica.mp3" loop preload="auto"></audio>
+  <audio id="bg-music" src="Soñé Zoé.mp3" loop preload="auto"></audio>
 
   <div id="main-title">Feliz Día de las Flores Amarillas 🌻✨</div>
   <div id="instruction">Toca para abrir 🌻📍</div>
@@ -206,7 +206,7 @@
 
       createCenterPhoto();
       createFlowerHeartShape();
-      createAmbientFlowers(); // Flores alrededor de la pantalla
+      createAmbientFlowers();
       createHeartParticles();
       createGalaxyBase();
       createTextPhrases();
@@ -230,24 +230,44 @@
       camera.lookAt(0, 0, 0);
     }
 
+    // FOTO DEL CENTRO: Recorte circular perfecto sin distorsión
     function createCenterPhoto() {
       const textureLoader = new THREE.TextureLoader();
       textureLoader.setCrossOrigin('anonymous');
+      
+      // Puedes reemplazar este link por el de tu propia imagen si deseas
       const imageUrl = 'https://i.imgur.com/iAJd5IU.jpeg';
 
       textureLoader.load(imageUrl, (texture) => {
         texture.colorSpace = THREE.SRGBColorSpace;
 
-        const geometry = new THREE.CircleGeometry(3.5, 64);
-        const material = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide });
+        // Ajustar el mapeo para recortar estilo "cover" (evita que la foto se deforme)
+        const imageAspect = texture.image.width / texture.image.height;
+        if (imageAspect > 1) {
+          texture.repeat.set(1 / imageAspect, 1);
+          texture.offset.set((1 - 1 / imageAspect) / 2, 0);
+        } else {
+          texture.repeat.set(1, imageAspect);
+          texture.offset.set(0, (1 - imageAspect) / 2);
+        }
+
+        const radius = 3.3; // Tamaño ajustado para encajar justo dentro del corazón
+        const geometry = new THREE.CircleGeometry(radius, 64);
+        const material = new THREE.MeshBasicMaterial({ 
+          map: texture, 
+          side: THREE.DoubleSide 
+        });
 
         photoMesh = new THREE.Mesh(geometry, material);
-        photoMesh.position.set(0, 0.5, 0.1);
+        // Centrado exacto en el punto medio del corazón geométrico
+        photoMesh.position.set(0, 0.4, 0.1); 
         scene.add(photoMesh);
 
-        const ringGeo = new THREE.RingGeometry(3.55, 3.8, 64);
+        // Anillo Dorado que sirve de marco elegante
+        const ringGeo = new THREE.RingGeometry(radius, radius + 0.25, 64);
         const ringMat = new THREE.MeshBasicMaterial({ color: 0xffd700, side: THREE.DoubleSide });
         const ringMesh = new THREE.Mesh(ringGeo, ringMat);
+        ringMesh.position.z = 0.01;
         photoMesh.add(ringMesh);
       });
     }
@@ -279,12 +299,11 @@
       return new THREE.CanvasTexture(canvas);
     }
 
-    // Corazón central formado por flores
     function createFlowerHeartShape() {
       const flowerTex = createSunflowerTexture();
       const material = new THREE.SpriteMaterial({ map: flowerTex, transparent: true });
 
-      const count = window.innerWidth < 600 ? 32 : 44;
+      const count = window.innerWidth < 600 ? 34 : 46;
       for (let i = 0; i < count; i++) {
         const t = (i / count) * Math.PI * 2;
         
@@ -292,7 +311,7 @@
         let y = 13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t);
 
         const sprite = new THREE.Sprite(material);
-        sprite.position.set(x * 0.55, y * 0.55 + 0.5, (Math.random() - 0.5) * 0.5);
+        sprite.position.set(x * 0.55, y * 0.55 + 0.4, (Math.random() - 0.5) * 0.5);
         
         const scale = 1.8 + Math.random() * 0.4;
         sprite.scale.set(scale, scale, 1);
@@ -308,7 +327,6 @@
       }
     }
 
-    // Flores flotantes por todos los alrededores del escenario
     function createAmbientFlowers() {
       const flowerTex = createSunflowerTexture();
       const material = new THREE.SpriteMaterial({ map: flowerTex, transparent: true, opacity: 0.88 });
@@ -318,7 +336,6 @@
       for (let i = 0; i < totalAmbientFlowers; i++) {
         const sprite = new THREE.Sprite(material);
         
-        // Distribuir en anillo exterior
         const radius = 13 + Math.random() * 16;
         const angle = Math.random() * Math.PI * 2;
         const z = (Math.random() - 0.5) * 15;
@@ -354,7 +371,7 @@
         let y = 13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t);
 
         positions[i * 3] = x * 0.53 + (Math.random() - 0.5) * 0.8;
-        positions[i * 3 + 1] = y * 0.53 + 0.5 + (Math.random() - 0.5) * 0.8;
+        positions[i * 3 + 1] = y * 0.53 + 0.4 + (Math.random() - 0.5) * 0.8;
         positions[i * 3 + 2] = (Math.random() - 0.5) * 2;
 
         let mixed = colorYellow.clone().lerp(colorOrange, Math.random());
@@ -518,6 +535,11 @@
     closeBtn.addEventListener('click', () => {
       modal.style.display = 'none';
     });
+
+    init();
+  </script>
+</body>
+</html>
 
     init();
   </script>
