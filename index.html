@@ -20,6 +20,48 @@
       touch-action: none;
     }
 
+    /* ESTILOS DE LA BARRA DE CARGA */
+    #loading-screen {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background-color: #020208;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 100;
+      transition: opacity 0.5s ease;
+    }
+
+    .progress-container {
+      width: 250px;
+      height: 12px;
+      background-color: rgba(255, 255, 255, 0.1);
+      border-radius: 10px;
+      overflow: hidden;
+      border: 1px solid rgba(255, 215, 0, 0.4);
+      box-shadow: 0 0 15px rgba(255, 215, 0, 0.3);
+      margin-bottom: 10px;
+    }
+
+    .progress-bar {
+      width: 0%;
+      height: 100%;
+      background: linear-gradient(90deg, #ffcc00, #ff8c00);
+      transition: width 0.2s ease;
+    }
+
+    .progress-text {
+      color: #ffe600;
+      font-weight: bold;
+      font-size: 1.1rem;
+      text-shadow: 0 0 8px rgba(255, 215, 0, 0.6);
+    }
+
+    /* ESTILOS DE LA ESCENA Y MENÚS */
     #canvas-container {
       width: 100vw;
       height: 100vh;
@@ -66,6 +108,7 @@
       box-shadow: 0 0 25px rgba(255, 215, 0, 0.6);
       user-select: none;
       white-space: nowrap;
+      display: none;
     }
 
     #card-modal {
@@ -143,7 +186,19 @@
 </head>
 <body>
 
-  <audio id="bg-music" src="sonie-zoe.mp3" loop preload="auto"></audio>
+  <!-- PANTALLA DE CARGA CON BARRA DE PROGRESO -->
+  <div id="loading-screen">
+    <div class="progress-container">
+      <div id="progress-bar" class="progress-bar"></div>
+    </div>
+    <p id="progress-text" class="progress-text">0%</p>
+  </div>
+
+  <!-- ETIQUETA DE AUDIO IDÉNTICA AL SEGUNDO CÓDIGO -->
+  <audio id="bg-music" loop preload="auto">
+    <source src="No hay nadie más.mp3.mp3" type="audio/mpeg">
+    Tu navegador no soporta el audio.
+  </audio>
 
   <div id="main-title">Feliz Día de las Flores Amarillas 🌻✨</div>
   <div id="instruction">Toca para abrir 🌻📍</div>
@@ -173,6 +228,19 @@
     let mouse = new THREE.Vector2();
     let interactiveFlowers = [];
 
+    // LÓGICA DE REPRODUCCIÓN DE AUDIO
+    const bgMusic = document.getElementById('bg-music');
+    let musicStarted = false;
+
+    function startAudio() {
+      if (!musicStarted && bgMusic) {
+        bgMusic.muted = false;
+        bgMusic.play().then(() => {
+          musicStarted = true;
+        }).catch(e => console.log("Audio a la espera de interacción:", e));
+      }
+    }
+
     const phrases = [
       "Gracias por existir 💛",
       "Aquí siempre tienes un lugar ✨",
@@ -185,6 +253,27 @@
     ];
 
     const tooltip = document.getElementById('flower-tooltip');
+    const progressBar = document.getElementById('progress-bar');
+    const progressText = document.getElementById('progress-text');
+    const loadingScreen = document.getElementById('loading-screen');
+    const instructionBtn = document.getElementById('instruction');
+
+    function updateProgress(percent) {
+      if (progressBar) progressBar.style.width = `${percent}%`;
+      if (progressText) progressText.innerText = `${percent}%`;
+
+      if (percent >= 100) {
+        setTimeout(() => {
+          if (loadingScreen) {
+            loadingScreen.style.opacity = '0';
+            setTimeout(() => {
+              loadingScreen.style.display = 'none';
+              instructionBtn.style.display = 'block';
+            }, 500);
+          }
+        }, 300);
+      }
+    }
 
     function init() {
       scene = new THREE.Scene();
@@ -203,6 +292,8 @@
 
       const ambientLight = new THREE.AmbientLight(0xffffff, 1);
       scene.add(ambientLight);
+
+      updateProgress(20);
 
       createCenterPhoto();
       createFlowerHeartShape();
@@ -230,18 +321,26 @@
       camera.lookAt(0, 0, 0);
     }
 
-    // FOTO DEL CENTRO: Recorte circular perfecto sin distorsión
     function createCenterPhoto() {
-      const textureLoader = new THREE.TextureLoader();
+      const loadingManager = new THREE.LoadingManager();
+      
+      loadingManager.onProgress = (url, itemsLoaded, itemsTotal) => {
+        const currentProgress = 20 + Math.round((itemsLoaded / itemsTotal) * 80);
+        updateProgress(currentProgress);
+      };
+
+      loadingManager.onLoad = () => {
+        updateProgress(100);
+      };
+
+      const textureLoader = new THREE.TextureLoader(loadingManager);
       textureLoader.setCrossOrigin('anonymous');
       
-      // Puedes reemplazar este link por el de tu propia imagen si deseas
       const imageUrl = 'https://i.imgur.com/iAJd5IU.jpeg';
 
       textureLoader.load(imageUrl, (texture) => {
         texture.colorSpace = THREE.SRGBColorSpace;
 
-        // Ajustar el mapeo para recortar estilo "cover" (evita que la foto se deforme)
         const imageAspect = texture.image.width / texture.image.height;
         if (imageAspect > 1) {
           texture.repeat.set(1 / imageAspect, 1);
@@ -251,7 +350,7 @@
           texture.offset.set(0, (1 - imageAspect) / 2);
         }
 
-        const radius = 3.3; // Tamaño ajustado para encajar justo dentro del corazón
+        const radius = 3.3;
         const geometry = new THREE.CircleGeometry(radius, 64);
         const material = new THREE.MeshBasicMaterial({ 
           map: texture, 
@@ -259,11 +358,9 @@
         });
 
         photoMesh = new THREE.Mesh(geometry, material);
-        // Centrado exacto en el punto medio del corazón geométrico
         photoMesh.position.set(0, 0.4, 0.1); 
         scene.add(photoMesh);
 
-        // Anillo Dorado que sirve de marco elegante
         const ringGeo = new THREE.RingGeometry(radius, radius + 0.25, 64);
         const ringMat = new THREE.MeshBasicMaterial({ color: 0xffd700, side: THREE.DoubleSide });
         const ringMesh = new THREE.Mesh(ringGeo, ringMat);
@@ -456,6 +553,8 @@
     }
 
     function onPointerDown(event) {
+      startAudio();
+
       if (document.getElementById('card-modal').style.display === 'block') return;
 
       mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
@@ -514,19 +613,15 @@
       renderer.setSize(window.innerWidth, window.innerHeight);
     }
 
-    const instructionBtn = document.getElementById('instruction');
     const modal = document.getElementById('card-modal');
     const closeBtn = document.getElementById('close-btn');
-    const bgMusic = document.getElementById('bg-music');
 
     function handleStart(e) {
       if (e) e.preventDefault();
+      startAudio();
+      
       instructionBtn.style.display = 'none';
       modal.style.display = 'block';
-
-      if (bgMusic) {
-        bgMusic.play().catch(err => console.log("Audio:", err));
-      }
     }
 
     instructionBtn.addEventListener('click', handleStart);
@@ -537,9 +632,6 @@
     });
 
     init();
-  </script>
-</body>
-</html>
   </script>
 </body>
 </html>
