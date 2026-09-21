@@ -186,7 +186,7 @@
 </head>
 <body>
 
-  <!-- PANTALLA DE CARGA CON BARRA DE PROGRESO -->
+  <!-- PANTALLA DE CARGA -->
   <div id="loading-screen">
     <div class="progress-container">
       <div id="progress-bar" class="progress-bar"></div>
@@ -194,8 +194,8 @@
     <p id="progress-text" class="progress-text">0%</p>
   </div>
 
-  <!-- ETIQUETA DE AUDIO ACTUALIZADA CON TU MÚSICA -->
-  <audio id="bg-music" loop preload="auto">
+  <!-- ETIQUETA DE AUDIO OPTIMIZADA PARA GITHUB PAGES -->
+  <audio id="bg-music" loop preload="auto" playsinline>
     <source src="sonie-zoe.mp3" type="audio/mpeg">
     Tu navegador no soporta el audio.
   </audio>
@@ -228,18 +228,28 @@
     let mouse = new THREE.Vector2();
     let interactiveFlowers = [];
 
-    // LÓGICA DE REPRODUCCIÓN DE AUDIO
+    // LÓGICA DE REPRODUCCIÓN Y DESBLOQUEO DE AUDIO
     const bgMusic = document.getElementById('bg-music');
     let musicStarted = false;
 
     function startAudio() {
       if (!musicStarted && bgMusic) {
         bgMusic.muted = false;
-        bgMusic.play().then(() => {
-          musicStarted = true;
-        }).catch(e => console.log("Audio a la espera de interacción:", e));
+        const playPromise = bgMusic.play();
+        if (playPromise !== undefined) {
+          playPromise.then(() => {
+            musicStarted = true;
+          }).catch(e => {
+            console.log("A la espera de interacción del usuario:", e);
+          });
+        }
       }
     }
+
+    // Escuchar interacción global inmediata en cualquier parte de la pantalla
+    window.addEventListener('click', startAudio, { once: true });
+    window.addEventListener('touchstart', startAudio, { once: true });
+    window.addEventListener('pointerdown', startAudio, { once: true });
 
     const phrases = [
       "Gracias por existir 💛",
